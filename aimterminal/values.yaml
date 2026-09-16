@@ -1,0 +1,69 @@
+image:
+  repository: ghcr.io/open-webui/open-terminal
+  tag: "0.12.3"
+  # Quoted single string: Olares' app-service mis-parses an unquoted
+  # "repo:tag" value that comes from a YAML mapping.
+  full: "ghcr.io/open-webui/open-terminal:0.12.3"
+  pullPolicy: IfNotPresent
+
+port: 8000
+
+replicaCount: 1
+
+workloads:
+  aimterminal:
+    replicaCount: 1
+
+revisionHistoryLimit: 1
+strategy:
+  type: Recreate
+
+resources:
+  limits:
+    cpu: "8"
+    memory: 12Gi
+  requests:
+    cpu: "500m"
+    memory: 1Gi
+
+# Persisted in the Olares userspace PVC (Olares rewrites the pvc-userspace
+# hash and inserts /Data/<app> at install time - see the deployment template).
+userspace:
+  appData: /olares/rootfs/userspace/pvc-userspace-aimighty-m27rxxbszvgk1u2l
+
+# Extra Python packages for large-file work. Installed once into
+# /home/user/.local (persisted on the volume), skipped when already present.
+# duckdb        - SQL over csv/parquet/xlsx, streams bigger than RAM
+# pyarrow/polars- fast columnar readers, parquet conversion
+# python-calamine - fast, memory-lean xlsx reader (replaces openpyxl path)
+# xlsx2csv/tabulate - xlsx -> csv streaming, ASCII tables for the model
+env:
+  OPEN_TERMINAL_PIP_PACKAGES: "duckdb pyarrow python-calamine polars xlsx2csv tabulate"
+  OPEN_TERMINAL_FILE_BROWSER_ROOT: "home"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_INPUT: "1"
+
+# Olares-injected environment variables (declared in OlaresManifest envs:).
+# The default keeps standalone `helm template` renders nil-free; Olares
+# overrides it at install time from the value the installer supplies.
+olaresEnv:
+  OPEN_TERMINAL_API_KEY: ""
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  failureThreshold: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 5
+
+service:
+  type: ClusterIP

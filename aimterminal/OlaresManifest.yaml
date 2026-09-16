@@ -1,0 +1,91 @@
+---
+olaresManifest.version: '0.12.0'
+olaresManifest.type: app
+apiVersion: 'v3'
+
+workloadReplicas:
+  aimterminal: 1
+
+metadata:
+  name: aimterminal
+  appid: aimterminal
+  icon: https://raw.githubusercontent.com/bayerhazard/aimighty-terminal/main/icon.png
+  description: Open Terminal sandbox for Open WebUI — real shell, persistent file browser and Python (pandas, DuckDB, calamine) for analysing very large spreadsheets up to 100 MB and beyond
+  title: AIM Terminal
+  version: '26.9.1'
+  categories:
+    - AI
+
+entrances:
+  - name: aimterminal
+    port: 8000
+    host: aimterminal
+    title: AIM Terminal
+    icon: https://raw.githubusercontent.com/bayerhazard/aimighty-terminal/main/icon.png
+    authLevel: internal
+    invisible: true
+
+spec:
+  versionName: '26.9.1'
+  upgradeDescription: |
+    v26.9.1: Initial release — Open Terminal 0.12.3 (the code-execution engine Open WebUI recommends over the legacy Jupyter/Pyodide interpreters) packaged for Olares. Gives Open WebUI a real shell, a persistent home directory and a file browser instead of text extraction. Preinstalled here: pandas, numpy, scipy, scikit-learn, matplotlib, plotly, openpyxl, csvkit plus duckdb, pyarrow, python-calamine, polars, xlsx2csv. Sized for spreadsheets up to 100 MB (12 GiB memory, 8 CPU). Built for Olares 1.12.6.
+  fullDescription: |
+    **Open Terminal 0.12.3** — the sandboxed shell and filesystem that Open WebUI connects to under *Admin → Integrations → Open Terminal*.
+
+    **Model**
+    Upstream image `ghcr.io/open-webui/open-terminal:0.12.3` (pinned tag). Runs as an unprivileged user; the API is only reachable inside the cluster (invisible internal entrance), never from the internet.
+
+    **Inference Engine**
+    Not a model. Open Terminal exposes `run_command`, `read_file`, `write_file`, `grep_search`, `glob_search` and process control as tools; the chat model calls them over HTTP with a bearer key. Open WebUI proxies every call, so the key never reaches the browser.
+
+    **Key Features**
+    - Chat attachments can be dropped straight into the terminal working directory (Open WebUI setting *Chat Uploads → Filesystem*): no text extraction, no RAG chunking, no copy in the Open WebUI database — the right path for a 100 MB workbook.
+    - Persistent home directory (`/home/user`) with a file browser in the chat: browse, upload, download, edit, preview.
+    - Python that handles big tables: pandas/numpy/scipy/openpyxl plus duckdb, pyarrow, python-calamine, polars, xlsx2csv for SQL and Parquet work.
+    - Documents and conversions: LibreOffice, pandoc, poppler, ffmpeg, imagemagick; matplotlib/seaborn/plotly for charts that Open WebUI renders inline.
+    - Output caps are honest: aggregate in SQL, write charts as PNG, never paste 100k rows into the context window.
+
+    **API**
+    ```bash
+    curl http://aimterminal:8000/health
+    curl -X POST http://aimterminal:8000/execute \
+      -H "Authorization: Bearer $OPEN_TERMINAL_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"command": "duckdb -c \"SELECT count(*) FROM read_xlsx(\\\"big.xlsx\\\")\""}'
+    ```
+
+    **Resource Usage**
+    CPU: 0.5-8 cores, RAM: 1-12 GiB (a 100 MB xlsx parses comfortably; DuckDB spills to disk beyond that), Disk: ~3 GB image, home directory on the Olares userspace volume
+    No GPU required.
+  developer: Aimighty
+  website: https://github.com/bayerhazard/aimighty-terminal
+  sourceCode: https://github.com/bayerhazard/aimighty-terminal
+  locale:
+    - en-US
+  supportArch:
+    - amd64
+  requiredCpu: "500m"
+  limitedCpu: "8"
+  requiredMemory: 1Gi
+  limitedMemory: 12Gi
+  requiredDisk: 10Gi
+  limitedDisk: 40Gi
+
+permission:
+  appData: true
+
+envs:
+  - envName: OPEN_TERMINAL_API_KEY
+    required: true
+    type: password
+    editable: false
+    regex: '^.{16,}$'
+    description: Bearer key for the Open Terminal API (used when adding the terminal connection in Open WebUI under Admin → Integrations)
+
+options:
+  apiTimeout: 0
+  allowMultipleInstall: false
+  dependencies:
+    - name: olares
+      version: '>=1.12.6-0'
+      type: system
