@@ -1,0 +1,36 @@
+metadata:
+  description: "Open-Terminal-Sandbox für Open WebUI — echte Shell, persistenter Dateibrowser und Python (pandas, DuckDB, calamine) zur Analyse sehr großer Tabellen bis 100 MB und darüber hinaus"
+  title: AIM Terminal
+
+spec:
+  fullDescription: |
+    **Open Terminal 0.12.3** — die sandboxed Shell und das Dateisystem, mit dem sich Open WebUI unter *Admin → Integrations → Open Terminal* verbindet.
+
+    **Modell**
+    Upstream-Image `ghcr.io/open-webui/open-terminal:0.12.3` (gepinnter Tag). Läuft als unprivilegierter Nutzer; die API ist nur innerhalb des Clusters erreichbar (unsichtbarer interner Entrance), niemals aus dem Internet.
+
+    **Inferenz-Engine**
+    Kein Modell. Open Terminal stellt `run_command`, `read_file`, `write_file`, `grep_search`, `glob_search` und Prozesssteuerung als Tools bereit; das Chat-Modell ruft sie per HTTP mit einem Bearer-Key auf. Open WebUI leitet jeden Aufruf weiter, sodass der Key nie den Browser erreicht.
+
+    **Kernfunktionen**
+    - Chat-Anhänge können direkt in das Arbeitsverzeichnis des Terminals gelegt werden (Open-WebUI-Einstellung *Chat Uploads → Filesystem*): keine Textextraktion, kein RAG-Chunking, keine Kopie in der Open-WebUI-Datenbank — der richtige Weg für eine 100-MB-Arbeitsmappe.
+    - Persistentes Home-Verzeichnis (`/home/user`) mit Dateibrowser im Chat: durchsuchen, hochladen, herunterladen, bearbeiten, ansehen.
+    - Python für große Tabellen: pandas/numpy/scipy/openpyxl sowie duckdb, pyarrow, python-calamine, polars, xlsx2csv für SQL- und Parquet-Arbeit.
+    - Dokumente und Konvertierungen: LibreOffice, pandoc, poppler, ffmpeg, imagemagick; matplotlib/seaborn/plotly für Diagramme, die Open WebUI inline rendert.
+    - Ehrliche Ausgabegrenzen: in SQL aggregieren, Diagramme als PNG schreiben, niemals 100k Zeilen in das Kontextfenster einfügen.
+
+    **API**
+    ```bash
+    curl http://aimterminal:8000/health
+    curl -X POST http://aimterminal:8000/execute \
+      -H "Authorization: Bearer $OPEN_TERMINAL_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"command": "duckdb -c \"SELECT count(*) FROM read_xlsx(\\\"big.xlsx\\\")\""}'
+    ```
+
+    **Ressourcenverbrauch**
+    CPU: 0,5-8 Kerne, RAM: 1-12 GiB (eine 100-MB-xlsx parst bequem; DuckDB lagert darüber hinaus auf die Festplatte aus), Disk: ~3 GB Image, Home-Verzeichnis auf dem Olares-Userspace-Volume
+    Keine GPU erforderlich.
+
+  upgradeDescription: |
+    v26.10.1: Initial Release für AImighty
